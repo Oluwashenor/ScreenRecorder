@@ -116,7 +116,7 @@
     function startRecording() {
         //Start Stream API
         streamAPI("start");
-        navigator.mediaDevices.getDisplayMedia({ video: true })
+        navigator.mediaDevices.getDisplayMedia({ video: true,audio:true })
             .then(function (stream) {
                 // Mime type for WebM video format
                 const mimeType = 'video/webm';
