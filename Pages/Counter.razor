@@ -13,6 +13,22 @@
 <script>
     const record = document.getElementById("startButton");
     let videoId = undefined;
+    const baseUrl = 'https://localhost:44384/api/';
+
+    const blobToByteArray = (blob) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const arrayBuffer = event.target.result;
+                const byteArray = new Uint8Array(arrayBuffer);
+                resolve(byteArray);
+            };
+            reader.onerror = function (event) {
+                reject(event.target.error);
+            };
+            reader.readAsArrayBuffer(blob);
+        });
+    };
 
     function createRecorder(stream, mimeType) {
         console.log("Starting Recorder");
@@ -26,7 +42,7 @@
                 // console.log("Media,",e);
                 // console.log("Media Data,", e);
                 recordedChunks.push(e.data);
-                saveStream(e.data);
+                saveStreamInBytes(e.data);
             }
         };
         mediaRecorder.onstop = function () {
@@ -49,7 +65,7 @@
                 chunkString: streamString,
                 id: videoId
             };
-            fetch('https://localhost:7056/api/uploadStream', {
+            fetch(baseUrl + '/uploadStream', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json', // Specify content type as JSON
@@ -76,14 +92,56 @@
         }
     }
 
+    
+    function saveStreamInBytes(blob) {
+        let blobData = new Blob([blob], { type: 'video/mp4' });
+        let reader = new FileReader();
+        reader.readAsArrayBuffer(blobData);
+        reader.onloadend = function () {
+            let arrayBuffer = reader.result;
+            const byteArray = new Uint8Array(arrayBuffer);
+            console.log(baseUrl + 'uploadStreamInBytes/' + videoId);
+            fetch(baseUrl+'uploadStreamInBytes/' + videoId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json', // Specify content type as JSON
+                                     // Add any other headers as needed
+                },
+                body: byteArray // Convert data object to JSON string
+            })
+                .then(response => {
+                    // Check if the request was successful
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    // Handle success response here
+                    return response.json(); // Parse JSON response
+                })
+                .then(responseData => {
+                    // Handle the response data
+                    console.log('Upload successful:', responseData);
+                })
+                .catch(error => {
+                    // Handle errors
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
+        
+            
+            }
+    }
+
+
+
+
     function streamAPI(state) {
         let api = '';
         if (state == "start") {
-            api = 'https://localhost:7056/api/startStream';
+            api = baseUrl + 'startStream';
         }
         else{
-            api = 'https://localhost:7056/api/stopStream/'+videoId;
+            api = baseUrl + 'stopStream/' + videoId;
         }
+        console.log(api);
         fetch(api, {
             method: 'GET',
             headers: {
@@ -119,7 +177,7 @@
         navigator.mediaDevices.getDisplayMedia({ video: true,audio:true })
             .then(function (stream) {
                 // Mime type for WebM video format
-                const mimeType = 'video/webm';
+                const mimeType = 'video/mp4';
 
                 // Create recorder with obtained stream and mimeType
                 const mediaRecorder = createRecorder(stream, mimeType);
