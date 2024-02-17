@@ -32,21 +32,16 @@
 
     function createRecorder(stream, mimeType) {
         console.log("Starting Recorder");
-        // the stream data is stored in this array
         let recordedChunks = [];
 
         const mediaRecorder = new MediaRecorder(stream);
-
         mediaRecorder.ondataavailable = function (e) {
             if (e.data.size > 0) {
-                // console.log("Media,",e);
-                // console.log("Media Data,", e);
                 recordedChunks.push(e.data);
                 saveStreamInBytes(e.data);
             }
         };
         mediaRecorder.onstop = function () {
-            //saveFile(recordedChunks);
             recordedChunks = [];
             streamAPI("stop");
         };
@@ -54,45 +49,6 @@
         return mediaRecorder;
     }
 
-    function saveStream(blobStream) {
-        let streamString = "";
-        let reader = new FileReader();
-        reader.readAsDataURL(blobStream);
-        reader.onloadend = function () {
-            streamString = reader.result;
-            console.log("Stream String In", streamString);
-            const data = {
-                chunkString: streamString,
-                id: videoId
-            };
-            fetch(baseUrl + '/uploadStream', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json', // Specify content type as JSON
-                    // Add any other headers as needed
-                },
-                body: JSON.stringify(data) // Convert data object to JSON string
-            })
-                .then(response => {
-                    // Check if the request was successful
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    // Handle success response here
-                    return response.json(); // Parse JSON response
-                })
-                .then(responseData => {
-                    // Handle the response data
-                    console.log('Upload successful:', responseData);
-                })
-                .catch(error => {
-                    // Handle errors
-                    console.error('There has been a problem with your fetch operation:', error);
-                });
-        }
-    }
-
-    
     function saveStreamInBytes(blob) {
         let blobData = new Blob([blob], { type: 'video/mp4' });
         let reader = new FileReader();
@@ -100,8 +56,8 @@
         reader.onloadend = function () {
             let arrayBuffer = reader.result;
             const byteArray = new Uint8Array(arrayBuffer);
-            console.log(baseUrl + 'uploadStreamInBytes/' + videoId);
-            fetch(baseUrl+'uploadStreamInBytes/' + videoId, {
+            console.log(baseUrl + 'upload/' + videoId);
+            fetch(baseUrl + 'upload/' + videoId, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json', // Specify content type as JSON
@@ -125,54 +81,55 @@
                     // Handle errors
                     console.error('There has been a problem with your fetch operation:', error);
                 });
-        
-            
             }
     }
 
 
-
-
     function streamAPI(state) {
         let api = '';
+        let body = undefined;
         if (state == "start") {
-            api = baseUrl + 'startStream';
+            api = baseUrl + 'start/';
+            body = JSON.stringify({
+                'email': 'user1@gmail.com'
+            });
         }
         else{
-            api = baseUrl + 'stopStream/' + videoId;
+            api = baseUrl + 'stop';
+            body = JSON.stringify({
+                'trackingId': videoId
+            });
         }
-        console.log(api);
         fetch(api, {
-            method: 'GET',
+            method: 'POST',
             headers: {
-                'Content-Type': 'application/json', // Specify the content type if needed
-                // Add any other headers as needed
+                'Content-Type': 'application/json',
             },
-            // You can include credentials such as cookies in your request if necessary
-            credentials: 'same-origin', // or 'include' to send credentials to other domains
+            body : body,
+            credentials: 'same-origin',
         })
             .then(response => {
-                // Check if the request was successful
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                // Parse the JSON response
                 return response.json();
             })
             .then(data => {
-                // Handle the data from the response
                 console.log("Response Data from Start Stream API", data);
-                videoId = data["data"];
+                if (state == 'start'){
+                    videoId = data["data"];
+                }
             })
             .catch(error => {
-                // Handle errors
                 console.error('There has been a problem with your fetch operation:', error);
             });
+        
     }
     
     // Function to handle button click
     function startRecording() {
         //Start Stream API
+        console.log("Starting recording");
         streamAPI("start");
         navigator.mediaDevices.getDisplayMedia({ video: true,audio:true })
             .then(function (stream) {
